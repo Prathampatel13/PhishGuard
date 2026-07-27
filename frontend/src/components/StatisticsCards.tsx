@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, ShieldCheck, ShieldOff, Search } from 'lucide-react';
+import { Shield, ShieldCheck, ShieldOff, Search, TrendingUp, Calendar } from 'lucide-react';
+import { formatNumber } from '../utils/helpers';
 
 interface StatItem {
   label: string;
@@ -18,6 +19,8 @@ interface StatisticsCardsProps {
     safe_count: number;
     dangerous_count: number;
     suspicious_count: number;
+    average_risk_score?: number;
+    today_scans?: number;
   };
 }
 
@@ -61,38 +64,53 @@ const StatisticsCards: React.FC<StatisticsCardsProps> = ({ stats }) => {
       bgColor: 'bg-primary-500/10',
     },
     {
-      label: 'Safe Sites',
+      label: 'Safe URLs',
       value: stats?.safe_count || 0,
       icon: ShieldCheck,
       color: 'text-accent-400',
       bgColor: 'bg-accent-500/10',
     },
     {
-      label: 'Suspicious',
+      label: 'Dangerous URLs',
+      value: stats?.dangerous_count || 0,
+      icon: ShieldOff,
+      color: 'text-red-400',
+      bgColor: 'bg-red-500/10',
+    },
+    {
+      label: 'Suspicious URLs',
       value: stats?.suspicious_count || 0,
       icon: Shield,
       color: 'text-yellow-400',
       bgColor: 'bg-yellow-500/10',
     },
     {
-      label: 'Dangerous',
-      value: stats?.dangerous_count || 0,
-      icon: ShieldOff,
-      color: 'text-red-400',
-      bgColor: 'bg-red-500/10',
+      label: 'Avg Risk Score',
+      value: Math.round(stats?.average_risk_score || 0),
+      icon: TrendingUp,
+      color: 'text-purple-400',
+      bgColor: 'bg-purple-500/10',
+      suffix: '%',
+    },
+    {
+      label: "Today's Scans",
+      value: stats?.today_scans || 0,
+      icon: Calendar,
+      color: 'text-cyan-400',
+      bgColor: 'bg-cyan-500/10',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       {defaultStats.map((stat, index) => (
         <motion.div
           key={stat.label}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
-          whileHover={{ y: -5 }}
-          className="glass-card p-4 sm:p-6"
+          whileHover={{ y: -5, scale: 1.02 }}
+          className="glass-card p-4 sm:p-5 hover:border-primary-500/30 transition-all duration-300"
         >
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-10 h-10 rounded-xl ${stat.bgColor} flex items-center justify-center`}>
@@ -100,7 +118,7 @@ const StatisticsCards: React.FC<StatisticsCardsProps> = ({ stats }) => {
             </div>
           </div>
           <div className={stat.color}>
-            <AnimatedCounter value={stat.value} />
+            <AnimatedCounter value={stat.value} suffix={stat.suffix} prefix={stat.prefix} />
           </div>
           <p className="text-xs text-gray-500 mt-1 font-medium">{stat.label}</p>
         </motion.div>

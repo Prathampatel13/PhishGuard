@@ -43,6 +43,7 @@ const Navbar: React.FC<NavbarProps> = ({ theme, toggleTheme, onMenuClick }) => {
           <div className="hidden md:flex items-center gap-1">
             {[
               { path: '/', label: 'Home' },
+              { path: '/dashboard', label: 'Dashboard' },
               { path: '/analyze', label: 'Analyze' },
               { path: '/history', label: 'History' },
               { path: '/about', label: 'About' },
