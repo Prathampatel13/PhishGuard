@@ -70,7 +70,7 @@ async def analyze_url(
 async def get_history(
     search: Optional[str] = Query(None, description="Search URLs by keyword"),
     skip: int = Query(0, ge=0, description="Records to skip"),
-    limit: int = Query(50, ge=1, le=100, description="Records per page"),
+    limit: int = Query(200, ge=1, le=1000, description="Records per page"),
     service: ScanService = Depends(get_scan_service),
 ):
     try:

@@ -1,20 +1,27 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, TrendingUp, Clock, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import {
+  Shield, TrendingUp, Clock, AlertTriangle, CheckCircle, RefreshCw,
+  Download, Copy, FileText, Search, Globe, Zap, BarChart3
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import URLInput from '../components/URLInput';
 import RiskMeter from '../components/RiskMeter';
 import RiskBadge from '../components/RiskBadge';
 import ReasonList from '../components/ReasonList';
 import RecommendationCard from '../components/RecommendationCard';
+import ThreatIndicators from '../components/ThreatIndicators';
+import TechnicalDetails from '../components/TechnicalDetails';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { apiService } from '../services/api';
+import { generatePDFReport, getRecommendations } from '../utils/helpers';
 import type { ScanResult } from '../types';
 
 const Analyze: React.FC = () => {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'report' | 'details' | 'indicators'>('report');
 
   const handleAnalyze = useCallback(async (url: string) => {
     setLoading(true);
@@ -38,6 +45,24 @@ const Analyze: React.FC = () => {
     setResult(null);
     setError(null);
   }, []);
+
+  const handleDownloadPDF = useCallback(() => {
+    if (result) {
+      generatePDFReport(result);
+      toast.success('PDF report downloaded');
+    }
+  }, [result]);
+
+  const handleCopyResults = useCallback(() => {
+    if (result) {
+      const text = `PhishGuard Analysis Report\n${'='.repeat(40)}\nURL: ${result.url}\nRisk Score: ${Math.round(result.risk_score)}/100\nStatus: ${result.status}\nConfidence: ${result.confidence}%\n\nReasons:\n${result.reasons.map(r => `  • ${r}`).join('\n')}\n\nRecommendation: ${result.recommendation}`;
+      navigator.clipboard.writeText(text).then(() => {
+        toast.success('Results copied to clipboard');
+      }).catch(() => {
+        toast.error('Failed to copy');
+      });
+    }
+  }, [result]);
 
   return (
     <div className="space-y-8">
@@ -66,12 +91,10 @@ const Analyze: React.FC = () => {
         transition={{ delay: 0.1 }}
         className="max-w-3xl mx-auto"
       >
-        {/* Show URL input only when no result or when reset */}
         {!result && (
           <URLInput onAnalyze={handleAnalyze} loading={loading} />
         )}
 
-        {/* Loading State */}
         {loading && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -82,7 +105,6 @@ const Analyze: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Error State */}
         {error && !loading && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -92,10 +114,7 @@ const Analyze: React.FC = () => {
             <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-red-400 mb-2">Analysis Failed</h3>
             <p className="text-sm text-gray-400 mb-6">{error}</p>
-            <button
-              onClick={handleReset}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-xl transition-colors"
-            >
+            <button onClick={handleReset} className="btn-primary">
               <RefreshCw className="w-4 h-4" />
               Try Again
             </button>
@@ -111,8 +130,22 @@ const Analyze: React.FC = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -30 }}
-            className="space-y-8"
+            className="space-y-6 max-w-6xl mx-auto"
           >
+            {/* URL Display */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-card p-4 flex items-center gap-3"
+            >
+              <Globe className="w-5 h-5 text-primary-400 flex-shrink-0" />
+              <span className="text-sm text-gray-300 truncate font-mono">{result.url}</span>
+              <button onClick={handleReset} className="ml-auto btn-ghost text-xs">
+                <RefreshCw className="w-3.5 h-3.5" />
+                New Scan
+              </button>
+            </motion.div>
+
             {/* Score Overview */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Risk Meter */}
@@ -136,55 +169,16 @@ const Analyze: React.FC = () => {
                 className="glass-card p-6 col-span-1 lg:col-span-2"
               >
                 <h3 className="text-lg font-semibold text-white mb-4">Analysis Summary</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    {
-                      icon: TrendingUp,
-                      label: 'Confidence',
-                      value: `${result.confidence}%`,
-                      color: 'text-accent-400',
-                      bg: 'bg-accent-500/10',
-                    },
-                    {
-                      icon: AlertTriangle,
-                      label: 'Risk Score',
-                      value: `${Math.round(result.risk_score)}/100`,
-                      color: 'text-yellow-400',
-                      bg: 'bg-yellow-500/10',
-                    },
-                    {
-                      icon: CheckCircle,
-                      label: 'Indicators',
-                      value: `${result.reasons.length}`,
-                      color: 'text-primary-400',
-                      bg: 'bg-primary-500/10',
-                    },
-                    {
-                      icon: Shield,
-                      label: 'HTTPS',
-                      value: result.analysis_details.has_https ? 'Yes' : 'No',
-                      color: result.analysis_details.has_https ? 'text-accent-400' : 'text-red-400',
-                      bg: result.analysis_details.has_https ? 'bg-accent-500/10' : 'bg-red-500/10',
-                    },
-                    {
-                      icon: Clock,
-                      label: 'URL Length',
-                      value: `${result.analysis_details.url_length} chars`,
-                      color: 'text-purple-400',
-                      bg: 'bg-purple-500/10',
-                    },
-                    {
-                      icon: TrendingUp,
-                      label: 'Subdomains',
-                      value: `${result.analysis_details.subdomain_count}`,
-                      color: 'text-cyan-400',
-                      bg: 'bg-cyan-500/10',
-                    },
+                    { icon: Zap, label: 'Confidence', value: `${result.confidence}%`, color: 'text-accent-400', bg: 'bg-accent-500/10' },
+                    { icon: BarChart3, label: 'Risk Score', value: `${Math.round(result.risk_score)}/100`, color: 'text-warning-400', bg: 'bg-warning-500/10' },
+                    { icon: CheckCircle, label: 'Indicators', value: `${result.reasons.length}`, color: 'text-primary-400', bg: 'bg-primary-500/10' },
+                    { icon: Shield, label: 'HTTPS', value: result.analysis_details.has_https ? 'Yes' : 'No', color: result.analysis_details.has_https ? 'text-accent-400' : 'text-red-400', bg: result.analysis_details.has_https ? 'bg-accent-500/10' : 'bg-red-500/10' },
+                    { icon: Clock, label: 'URL Length', value: `${result.analysis_details.url_length} chars`, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+                    { icon: TrendingUp, label: 'Subdomains', value: `${result.analysis_details.subdomain_count}`, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
                   ].map((stat) => (
-                    <div
-                      key={stat.label}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-dark-800/50 border border-dark-700/30"
-                    >
+                    <div key={stat.label} className="flex items-center gap-3 p-3 rounded-xl bg-dark-800/50 border border-dark-700/30">
                       <div className={`w-9 h-9 rounded-lg ${stat.bg} flex items-center justify-center`}>
                         <stat.icon className={`w-4 h-4 ${stat.color}`} />
                       </div>
@@ -198,155 +192,93 @@ const Analyze: React.FC = () => {
               </motion.div>
             </div>
 
-            {/* Analysis Details */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Detailed Analysis Breakdown */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="glass-card p-6"
-              >
-                <h3 className="text-lg font-semibold text-white mb-4">Technical Details</h3>
-                <div className="space-y-3">
-                  {[
-                    { label: 'URL Protocol', value: result.analysis_details.has_https ? 'HTTPS (Secure)' : result.analysis_details.has_http ? 'HTTP (Insecure)' : 'Unknown', status: result.analysis_details.has_https ? 'safe' : 'dangerous' },
-                    { label: 'IP Address Detected', value: result.analysis_details.has_ip ? 'Yes' : 'No', status: result.analysis_details.has_ip ? 'dangerous' : 'safe' },
-                    { label: '@ Symbol Present', value: result.analysis_details.has_at_symbol ? 'Yes' : 'No', status: result.analysis_details.has_at_symbol ? 'dangerous' : 'safe' },
-                    { label: 'Hyphens in Domain', value: result.analysis_details.has_hyphens ? 'Yes' : 'No', status: result.analysis_details.has_hyphens ? 'suspicious' : 'safe' },
-                    { label: 'Suspicious TLD', value: result.analysis_details.suspicious_tld ? 'Yes' : 'No', status: result.analysis_details.suspicious_tld ? 'dangerous' : 'safe' },
-                    { label: 'Subdomain Count', value: `${result.analysis_details.subdomain_count}`, status: result.analysis_details.subdomain_count > 2 ? 'suspicious' : 'safe' },
-                    { label: 'Special Characters', value: `${result.analysis_details.special_char_count}`, status: result.analysis_details.special_char_count > 10 ? 'suspicious' : 'safe' },
-                  ].map((detail) => (
-                    <div
-                      key={detail.label}
-                      className="flex items-center justify-between p-3 rounded-xl bg-dark-800/50 border border-dark-700/30"
-                    >
-                      <span className="text-sm text-gray-400">{detail.label}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-white">{detail.value}</span>
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            detail.status === 'safe' ? 'bg-accent-500' :
-                            detail.status === 'dangerous' ? 'bg-red-500' :
-                            'bg-yellow-500'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-
-              {/* Keywords & Brands Found */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="space-y-6"
-              >
-                {/* Suspicious Keywords */}
-                {result.analysis_details.suspicious_keywords.length > 0 && (
-                  <div className="glass-card p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Suspicious Keywords Found</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {result.analysis_details.suspicious_keywords.map((keyword) => (
-                        <span
-                          key={keyword}
-                          className="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm font-medium rounded-lg"
-                        >
-                          {keyword}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Brand Impersonation */}
-                {result.analysis_details.brand_impersonation.length > 0 && (
-                  <div className="glass-card p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Brand Impersonation Detected</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {result.analysis_details.brand_impersonation.map((brand) => (
-                        <span
-                          key={brand}
-                          className="px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium rounded-lg"
-                        >
-                          {brand}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* No threats found */}
-                {result.analysis_details.suspicious_keywords.length === 0 &&
-                 result.analysis_details.brand_impersonation.length === 0 && (
-                  <div className="glass-card p-6 border-accent-500/20 bg-accent-500/5">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle className="w-6 h-6 text-accent-400" />
-                      <div>
-                        <h3 className="text-lg font-semibold text-accent-400">No Threats Detected</h3>
-                        <p className="text-sm text-gray-400">No suspicious keywords or brand impersonation found.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
+            {/* Analysis Tabs */}
+            <div className="flex flex-wrap gap-2 border-b border-dark-700/50 pb-2">
+              {[
+                { id: 'report' as const, label: 'Analysis Report', icon: FileText },
+                { id: 'indicators' as const, label: 'Threat Indicators', icon: Shield },
+                { id: 'details' as const, label: 'Technical Details', icon: BarChart3 },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-xl transition-all ${
+                    activeTab === tab.id
+                      ? 'text-primary-400 bg-primary-500/10 border-b-2 border-primary-500'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-dark-800/30'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
-            {/* Detection Reasons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <ReasonList reasons={result.reasons} status={result.status} />
-            </motion.div>
+            {/* Tab Content */}
+            <AnimatePresence mode="wait">
+              {activeTab === 'report' && (
+                <motion.div
+                  key="report"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-6"
+                >
+                  {/* Detection Reasons */}
+                  <ReasonList reasons={result.reasons} status={result.status} />
 
-            {/* Recommendation */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <RecommendationCard
-                recommendation={result.recommendation}
-                status={result.status}
-                confidence={result.confidence}
-              />
-            </motion.div>
+                  {/* Recommendations */}
+                  <RecommendationCard
+                    recommendation={result.recommendation}
+                    status={result.status}
+                    confidence={result.confidence}
+                    recommendations={getRecommendations(result.status)}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'indicators' && (
+                <motion.div
+                  key="indicators"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <ThreatIndicators details={result.analysis_details} />
+                </motion.div>
+              )}
+
+              {activeTab === 'details' && (
+                <motion.div
+                  key="details"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <TechnicalDetails details={result.analysis_details} url={result.url} />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Action Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="flex flex-wrap items-center justify-center gap-4"
+              transition={{ delay: 0.6 }}
+              className="flex flex-wrap items-center justify-center gap-3 pt-4"
             >
-              <button
-                onClick={handleReset}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-xl transition-all duration-200 cyber-glow"
-              >
-                <RefreshCw className="w-4 h-4" />
+              <button onClick={handleReset} className="btn-primary">
+                <Search className="w-4 h-4" />
                 Analyze Another URL
               </button>
 
-              <button
-                onClick={() => {
-                  // Copy results as JSON
-                  const text = JSON.stringify(result, null, 2);
-                  navigator.clipboard.writeText(text).then(() => {
-                    toast.success('Results copied to clipboard');
-                  }).catch(() => {
-                    toast.error('Failed to copy results');
-                  });
-                }}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-dark-800 hover:bg-dark-700 text-gray-300 font-medium rounded-xl border border-dark-700/50 transition-all duration-200"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
+              <button onClick={handleDownloadPDF} className="btn-secondary">
+                <Download className="w-4 h-4" />
+                Download PDF
+              </button>
+
+              <button onClick={handleCopyResults} className="btn-secondary">
+                <Copy className="w-4 h-4" />
                 Copy Results
               </button>
             </motion.div>
@@ -354,7 +286,7 @@ const Analyze: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Empty State (no result, no loading, no error) */}
+      {/* Empty State */}
       {!result && !loading && !error && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -364,18 +296,18 @@ const Analyze: React.FC = () => {
         >
           <div className="max-w-md mx-auto">
             <div className="w-20 h-20 rounded-2xl bg-dark-800/50 border border-dark-700/30 flex items-center justify-center mx-auto mb-6">
-              <Shield className="w-10 h-10 text-dark-600" />
+              <Search className="w-10 h-10 text-dark-600" />
             </div>
             <h3 className="text-xl font-semibold text-gray-300 mb-2">Ready to Analyze</h3>
             <p className="text-sm text-gray-500">
-              Enter a URL above to scan it for phishing indicators. Our engine will check for suspicious patterns, brand impersonation, and other threats.
+              Enter a URL above to scan it for phishing indicators.
             </p>
-            <div className="mt-8 grid grid-cols-2 gap-4 text-left">
+            <div className="mt-8 grid grid-cols-2 gap-3 text-left">
               {[
                 { label: 'Safe Example', url: 'https://google.com' },
-                { label: 'Suspicious Example', url: 'http://secure-login.xyz/auth' },
-                { label: 'Dangerous Example', url: 'https://paypal-verify-account.tk/login' },
-                { label: 'Long URL Example', url: 'https://facebook.com/profile.php?id=123456789012345&ref=notifications&source=email' },
+                { label: 'Suspicious', url: 'http://secure-login.xyz/auth' },
+                { label: 'Dangerous', url: 'https://paypal-verify-account.tk/login' },
+                { label: 'Long URL', url: 'https://facebook.com/profile.php?id=1234567890' },
               ].map((example) => (
                 <button
                   key={example.label}

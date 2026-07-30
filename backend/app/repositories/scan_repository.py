@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func, cast, Date
+from sqlalchemy import desc, func
 
 from app.models.scan_history import ScanHistory
 from app.utils.logger import app_logger
@@ -146,14 +146,14 @@ class ScanRepository:
         seven_days_ago = datetime.utcnow() - timedelta(days=7)
         daily_counts = (
             self.db.query(
-                cast(ScanHistory.created_at, Date).label("date"),
-                func.count(ScanHistory.id).label("count"),
-            )
-            .filter(ScanHistory.created_at >= seven_days_ago)
-            .group_by(cast(ScanHistory.created_at, Date))
-            .order_by(cast(ScanHistory.created_at, Date))
-            .all()
-        )
+            func.date(ScanHistory.created_at).label("date"),
+            func.count(ScanHistory.id).label("count"),
+    )
+    .filter(ScanHistory.created_at >= seven_days_ago)
+    .group_by(func.date(ScanHistory.created_at))
+    .order_by(func.date(ScanHistory.created_at))
+    .all()
+)
 
         daily_scan_counts = [
             {"date": str(row.date), "count": row.count} for row in daily_counts
@@ -162,13 +162,13 @@ class ScanRepository:
         # Risk trend (last 7 days average risk score per day)
         risk_trend_data = (
             self.db.query(
-                cast(ScanHistory.created_at, Date).label("date"),
+                func.date(ScanHistory.created_at).label("date"),
                 func.avg(ScanHistory.risk_score).label("avg_risk"),
-            )
-            .filter(ScanHistory.created_at >= seven_days_ago)
-            .group_by(cast(ScanHistory.created_at, Date))
-            .order_by(cast(ScanHistory.created_at, Date))
-            .all()
+        )
+        .filter(ScanHistory.created_at >= seven_days_ago)
+        .group_by(func.date(ScanHistory.created_at))
+        .order_by(func.date(ScanHistory.created_at))
+        .all()
         )
 
         risk_trend = [

@@ -9,21 +9,22 @@ import Footer from './components/Footer';
 import LoadingSpinner from './components/LoadingSpinner';
 
 import Home from './pages/Home';
+import Dashboard from './pages/Dashboard';
 import Analyze from './pages/Analyze';
 import History from './pages/History';
 import About from './pages/About';
 
 import { useTheme } from './hooks/useTheme';
-import type { Theme } from './types';
 
 const App: React.FC = () => {
   const { theme, toggleTheme, isDark } = useTheme();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
   const location = useLocation();
 
   useEffect(() => {
-    // Simulate initial load
     const timer = setTimeout(() => setLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
@@ -39,6 +40,7 @@ const App: React.FC = () => {
   return (
     <div className={isDark ? 'dark' : ''}>
       <div className="min-h-screen bg-gray-50 dark:bg-dark-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
         <Toaster
           position="top-right"
           toastOptions={{
@@ -58,31 +60,42 @@ const App: React.FC = () => {
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
         />
 
-        <div className="flex">
+        <div className="flex pt-16">
+
           <Sidebar
             isOpen={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
           />
 
-          <main className="flex-1 min-h-screen pt-16 lg:pl-64">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <AnimatePresence mode="wait">
-                <Routes location={location} key={location.pathname}>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/analyze" element={<Analyze />} />
-                  <Route path="/history" element={<History />} />
-                  <Route path="/about" element={<About />} />
-                </Routes>
-              </AnimatePresence>
-            </div>
-          </main>
+          <div className="flex-1 flex flex-col min-h-[calc(100vh-4rem)]">
+
+            <main className="flex-1">
+
+              <div className="max-w-7xl mx-auto w-full px-6 py-8">
+
+                <AnimatePresence mode="wait">
+                  <Routes location={location} key={location.pathname}>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/analyze" element={<Analyze />} />
+                    <Route path="/history" element={<History />} />
+                    <Route path="/about" element={<About />} />
+                  </Routes>
+                </AnimatePresence>
+
+              </div>
+
+            </main>
+
+            <Footer />
+
+          </div>
+
         </div>
 
-        <Footer />
       </div>
     </div>
   );
 };
 
 export default App;
-

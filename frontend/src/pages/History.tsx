@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { History as HistoryIcon, RefreshCw, Download, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HistoryTable from '../components/HistoryTable';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { apiService } from '../services/api';
+import { exportToCSV, formatDate, getStatusLabel } from '../utils/helpers';
 import type { HistoryRecord } from '../types';
 
 const History: React.FC = () => {
@@ -13,7 +15,9 @@ const History: React.FC = () => {
 
   const fetchHistory = async () => {
     try {
-      const data = await apiService.getHistory();
+      setLoading(true);
+      setError(null);
+      const data = await apiService.getHistory({ limit: 200 });
       if (data && 'records' in data) {
         setRecords(data.records as HistoryRecord[]);
       } else {
@@ -43,7 +47,7 @@ const History: React.FC = () => {
   };
 
   const handleClearAll = async () => {
-    if (!window.confirm('Are you sure you want to clear all history?')) return;
+    if (!window.confirm('Are you sure you want to clear all history? This action cannot be undone.')) return;
     try {
       await apiService.clearAllHistory();
       setRecords([]);
@@ -51,6 +55,17 @@ const History: React.FC = () => {
     } catch (err) {
       toast.error('Failed to clear history');
     }
+  };
+
+  const handleExportAllCSV = () => {
+    const csvData = records.map((item) => ({
+      URL: item.url,
+      'Risk Score': item.risk_score,
+      Status: getStatusLabel(item.status),
+      'Analysis Date': formatDate(item.created_at),
+    }));
+    exportToCSV(csvData, `phishguard-full-history-${new Date().toISOString().split('T')[0]}`);
+    toast.success('CSV exported successfully');
   };
 
   if (loading) {
@@ -67,11 +82,39 @@ const History: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
       >
-        <h1 className="text-3xl font-bold text-white mb-2">Scan History</h1>
-        <p className="text-gray-400">
-          View and manage all your past URL analysis results.
-        </p>
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center">
+              <HistoryIcon className="w-5 h-5 text-primary-500" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Scan History</h1>
+          </div>
+          <p className="text-gray-400 ml-[52px]">
+            View and manage all your past URL analysis results.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {records.length > 0 && (
+            <>
+              <button
+                onClick={handleExportAllCSV}
+                className="btn-secondary text-sm"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+              <button
+                onClick={fetchHistory}
+                className="btn-ghost text-sm"
+                title="Refresh"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
       </motion.div>
 
       {/* Error State */}
@@ -79,21 +122,13 @@ const History: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 border-yellow-500/20 bg-yellow-500/5"
+          className="glass-card p-8 text-center border-yellow-500/20 bg-yellow-500/5"
         >
-          <p className="text-yellow-400 text-center mb-4">{error}</p>
-          <div className="flex justify-center">
-            <button
-              onClick={() => {
-                setLoading(true);
-                setError(null);
-                fetchHistory();
-              }}
-              className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-xl transition-colors"
-            >
-              Retry
-            </button>
-          </div>
+          <p className="text-yellow-400 mb-4">{error}</p>
+          <button onClick={fetchHistory} className="btn-primary">
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </button>
         </motion.div>
       )}
 
@@ -103,40 +138,24 @@ const History: React.FC = () => {
           data={records}
           onDelete={handleDelete}
           onClearAll={handleClearAll}
+          loading={loading}
         />
       )}
 
-      {/* Export Buttons */}
-      {records.length > 0 && !error && (
+      {/* Empty State Info */}
+      {!error && records.length === 0 && !loading && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-wrap items-center gap-4"
+          className="text-center py-8"
         >
-          <button
-            onClick={() => {
-              const csv = [
-                ['URL', 'Risk Score', 'Status', 'Date'],
-                ...records.map((r) => [r.url, r.risk_score, r.status, r.created_at]),
-              ]
-                .map((row) => row.join(','))
-                .join('\n');
-              const blob = new Blob([csv], { type: 'text/csv' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `phishguard-history-${new Date().toISOString().split('T')[0]}.csv`;
-              a.click();
-              URL.revokeObjectURL(url);
-              toast.success('CSV exported successfully');
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-gray-300 text-sm font-medium rounded-xl border border-dark-700/50 transition-all"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export CSV
-          </button>
+          <div className="w-16 h-16 rounded-2xl bg-dark-800/50 border border-dark-700/30 flex items-center justify-center mx-auto mb-4">
+            <FileText className="w-8 h-8 text-dark-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-300 mb-2">No History Yet</h3>
+          <p className="text-sm text-gray-500 max-w-md mx-auto">
+            Start by analyzing a URL on the Analyze page. Your scan history will appear here with detailed results and recommendations.
+          </p>
         </motion.div>
       )}
     </div>
@@ -144,4 +163,3 @@ const History: React.FC = () => {
 };
 
 export default History;
-
