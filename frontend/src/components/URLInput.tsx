@@ -17,15 +17,19 @@ const URLInput: React.FC<URLInputProps> = ({ onAnalyze, loading }) => {
       return false;
     }
     
-    // Basic URL validation
-    const urlPattern = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-\.~:/?#\[\]@!$&()*+,;=]*)?$/i;
-    if (!urlPattern.test(value.trim())) {
+    try {
+      // Add a dummy protocol if missing just for validation purposes
+      const urlToValidate = value.trim().match(/^https?:\/\//i) 
+        ? value.trim() 
+        : `https://${value.trim()}`;
+        
+      new URL(urlToValidate);
+      setError('');
+      return true;
+    } catch (err) {
       setError('Please enter a valid URL');
       return false;
     }
-    
-    setError('');
-    return true;
   };
 
   const handleSubmit = (e: React.FormEvent) => {

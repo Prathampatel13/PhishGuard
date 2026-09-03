@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./phishguard.db"
 
     # CORS
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    CORS_ORIGINS: str = "*"
 
     # Security
     SECRET_KEY: str = "phishguard-dev-secret-key-2024"
@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS origins string into a list."""
+        if self.CORS_ORIGINS == "*":
+            return ["*"]
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
     class Config:
