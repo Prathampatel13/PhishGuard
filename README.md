@@ -228,14 +228,29 @@ phishguard/
 - **Python** 3.10+
 - **pip** (Python package manager)
 
-### Step 1: Clone the Repository
+### ⚡ One-Click Start (Windows Recommended)
+
+For Windows users, we have provided an automated setup and startup script that handles everything for you.
+
+1. Clone or download the repository.
+2. Double-click on `start.bat` in the root folder.
+3. The script will automatically install all backend and frontend dependencies (if it's your first time) and launch both servers simultaneously in new command prompt windows.
+4. Your default web browser will automatically open to **http://localhost:5173**.
+
+To stop the servers, simply close the two command prompt windows.
+
+---
+
+### Manual Setup (macOS / Linux / Advanced)
+
+#### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/yourusername/phishguard.git
 cd phishguard
 ```
 
-### Step 2: Backend Setup
+#### Step 2: Backend Setup
 
 ```bash
 cd backend
@@ -258,7 +273,7 @@ uvicorn app.main:app --reload
 
 The backend will start at **http://localhost:8000**.
 
-### Step 3: Frontend Setup
+#### Step 3: Frontend Setup
 
 ```bash
 cd frontend
